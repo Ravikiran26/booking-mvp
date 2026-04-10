@@ -6,19 +6,6 @@ export type Plan = {
   features: string[]
 }
 
-export type Payment = {
-  id: string
-  plan_name: string
-  amount_usd: number
-  amount_inr: number
-  client_name: string
-  client_email: string
-  payment_id: string
-  razorpay_order_id: string
-  status: string
-  created_at: string
-}
-
 export const PLANS: Plan[] = [
   {
     id: '150',

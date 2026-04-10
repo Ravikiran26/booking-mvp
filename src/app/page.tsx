@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { PLANS } from '@/lib/types'
 import { getLiveRate, usdToInr } from '@/lib/currency'
 
+export const revalidate = 3600
+
 export default async function HomePage() {
   const rate = await getLiveRate()
 
@@ -16,9 +18,6 @@ export default async function HomePage() {
             <h1 className="text-xl font-semibold tracking-tight">BookingMVP</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Expert consulting sessions</p>
           </div>
-          <Link href="/dashboard">
-            <Button variant="outline" size="sm">Admin</Button>
-          </Link>
         </div>
       </header>
 

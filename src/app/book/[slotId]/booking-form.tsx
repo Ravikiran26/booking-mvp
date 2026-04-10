@@ -127,7 +127,15 @@ export function BookingForm({ plan, amountInr, rate }: { plan: Plan; amountInr: 
               return
             }
 
-            router.push(`/success?paymentId=${data.paymentId}`)
+            const params = new URLSearchParams({
+              paymentId: data.paymentId,
+              plan: data.planName,
+              amountUsd: String(data.amountUsd),
+              amountInr: String(data.amountInr),
+              name: data.clientName,
+              email: data.clientEmail,
+            })
+            router.push(`/success?${params.toString()}`)
           } catch {
             setError('Something went wrong after payment. Please contact support.')
             setLoading(false)

@@ -1,31 +1,23 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import type { Payment } from '@/lib/types'
-
-export const dynamic = 'force-dynamic'
 
 export default async function SuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ paymentId?: string }>
+  searchParams: Promise<{
+    paymentId?: string
+    plan?: string
+    amountUsd?: string
+    amountInr?: string
+    name?: string
+    email?: string
+  }>
 }) {
-  const { paymentId } = await searchParams
+  const { paymentId, plan, amountUsd, amountInr, name, email } = await searchParams
 
-  if (!paymentId) notFound()
-
-  const supabase = createAdminClient()
-  const { data: payment, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('id', paymentId)
-    .single()
-
-  if (error || !payment) notFound()
-
-  const p = payment as Payment
+  if (!paymentId || !plan || !name) notFound()
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
@@ -52,19 +44,19 @@ export default async function SuccessPage({
           <CardContent>
             <div className="grid grid-cols-2 gap-y-3 text-sm">
               <span className="text-muted-foreground">Plan</span>
-              <span className="font-medium">{p.plan_name}</span>
+              <span className="font-medium">{plan}</span>
 
               <span className="text-muted-foreground">Name</span>
-              <span className="font-medium">{p.client_name}</span>
+              <span className="font-medium">{name}</span>
 
               <span className="text-muted-foreground">Email</span>
-              <span className="font-medium break-all">{p.client_email}</span>
+              <span className="font-medium break-all">{email}</span>
 
               <span className="text-muted-foreground">Amount</span>
               <span className="font-medium">
-                ${p.amount_usd}{' '}
+                ${amountUsd}{' '}
                 <span className="text-muted-foreground font-normal">
-                  (₹{p.amount_inr.toLocaleString('en-IN')})
+                  (₹{Number(amountInr).toLocaleString('en-IN')})
                 </span>
               </span>
 
@@ -75,7 +67,7 @@ export default async function SuccessPage({
               </span>
 
               <span className="text-muted-foreground">Payment ID</span>
-              <span className="font-mono text-xs break-all">{p.payment_id}</span>
+              <span className="font-mono text-xs break-all">{paymentId}</span>
             </div>
           </CardContent>
         </Card>
