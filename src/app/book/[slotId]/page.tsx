@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Script from 'next/script'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -58,7 +57,6 @@ export default async function BookPage({
         </div>
       </header>
 
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="beforeInteractive" />
       <main className="max-w-2xl mx-auto px-4 py-10">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight mb-1">Complete Your Booking</h1>

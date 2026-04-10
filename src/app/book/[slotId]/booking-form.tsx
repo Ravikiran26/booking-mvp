@@ -77,6 +77,19 @@ export function BookingForm({ slot }: { slot: Slot }) {
     setLoading(true)
 
     try {
+      // Load Razorpay script dynamically if not already loaded
+      await new Promise<void>((resolve, reject) => {
+        if (typeof window.Razorpay !== 'undefined') {
+          resolve()
+          return
+        }
+        const script = document.createElement('script')
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+        script.onload = () => resolve()
+        script.onerror = () => reject(new Error('Failed to load Razorpay'))
+        document.body.appendChild(script)
+      })
+
       // Step 1: Create Razorpay order
       const orderRes = await fetch('/api/payment/create-order', {
         method: 'POST',
