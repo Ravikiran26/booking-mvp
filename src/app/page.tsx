@@ -1,65 +1,116 @@
-import Image from "next/image";
+import Link from 'next/link'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import type { Slot } from '@/lib/types'
 
-export default function Home() {
+export const dynamic = 'force-dynamic'
+
+function formatTime(time: string) {
+  const [h, m] = time.split(':')
+  const hour = parseInt(h)
+  const suffix = hour >= 12 ? 'PM' : 'AM'
+  const display = hour % 12 === 0 ? 12 : hour % 12
+  return `${display}:${m} ${suffix}`
+}
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
+const categoryColors: Record<string, string> = {
+  'Software Developer': 'bg-blue-50 text-blue-700 ring-blue-700/10',
+  'Cyber Security': 'bg-red-50 text-red-700 ring-red-700/10',
+  'DevOps': 'bg-orange-50 text-orange-700 ring-orange-700/10',
+  'Cloud Architecture': 'bg-purple-50 text-purple-700 ring-purple-700/10',
+}
+
+export default async function HomePage() {
+  const supabase = createAdminClient()
+
+  const { data: slots, error } = await supabase
+    .from('slots')
+    .select('*')
+    .eq('is_booked', false)
+    .order('date', { ascending: true })
+    .order('start_time', { ascending: true })
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b">
+        <div className="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">BookingMVP</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Expert consulting sessions</p>
+          </div>
+          <Link href="/dashboard">
+            <Button variant="outline" size="sm">Admin</Button>
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 py-10">
+        {/* Hero */}
+        <div className="mb-10">
+          <h2 className="text-3xl font-semibold tracking-tight mb-2">Book a Session</h2>
+          <p className="text-muted-foreground text-base">
+            One-on-one expert consulting sessions — $150 / hour. Pick a slot below.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
+        {/* Slot grid */}
+        {error ? (
+          <div className="text-center py-20 text-muted-foreground">
+            Failed to load available slots. Please try again.
+          </div>
+        ) : !slots || slots.length === 0 ? (
+          <div className="text-center py-20 text-muted-foreground">
+            <p className="text-lg font-medium mb-1">No slots available</p>
+            <p className="text-sm">Check back soon for new openings.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(slots as Slot[]).map((slot) => (
+              <Card key={slot.id} className="flex flex-col">
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-base leading-snug">{slot.title}</CardTitle>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset shrink-0 ${
+                        categoryColors[slot.title] ?? 'bg-gray-50 text-gray-700 ring-gray-700/10'
+                      }`}
+                    >
+                      Open
+                    </span>
+                  </div>
+                  <CardDescription>{formatDate(slot.date)}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-2">
+                  <div className="text-sm text-muted-foreground">
+                    {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
+                  </div>
+                  <div className="text-2xl font-semibold tracking-tight">
+                    ${slot.price}
+                    <span className="text-sm font-normal text-muted-foreground"> / hr</span>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Link href={`/book/${slot.id}`} className="w-full">
+                    <Button className="w-full" size="sm">Book Now</Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
       </main>
     </div>
-  );
+  )
 }
