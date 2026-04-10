@@ -1,12 +1,10 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { BookingForm } from './booking-form'
-import type { Slot } from '@/lib/types'
-
-export const dynamic = 'force-dynamic'
+import { PLANS } from '@/lib/types'
+import { getLiveRate, usdToInr } from '@/lib/currency'
 
 export default async function BookPage({
   params,
@@ -14,46 +12,21 @@ export default async function BookPage({
   params: Promise<{ slotId: string }>
 }) {
   const { slotId } = await params
-  const supabase = createAdminClient()
+  const plan = PLANS.find((p) => p.id === slotId)
 
-  const { data: slot, error } = await supabase
-    .from('slots')
-    .select('*')
-    .eq('id', slotId)
-    .single()
+  if (!plan) notFound()
 
-  if (error || !slot) {
-    notFound()
-  }
-
-  if ((slot as Slot).is_booked) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <CardTitle>Slot Unavailable</CardTitle>
-            <CardDescription>This slot has already been booked.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/">
-              <Button variant="outline" className="w-full">View Other Slots</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const rate = await getLiveRate()
+  const amountInr = usdToInr(plan.amountUsd, rate)
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="max-w-2xl mx-auto px-4 py-5 flex items-center gap-3">
           <Link href="/">
-            <Button variant="ghost" size="sm" className="gap-1.5">
-              ← Back
-            </Button>
+            <Button variant="ghost" size="sm">← Back</Button>
           </Link>
-          <span className="text-sm text-muted-foreground">Book a Session</span>
+          <span className="text-sm text-muted-foreground">Complete Your Booking</span>
         </div>
       </header>
 
@@ -67,7 +40,7 @@ export default async function BookPage({
 
         <Card>
           <CardContent className="pt-6">
-            <BookingForm slot={slot as Slot} />
+            <BookingForm plan={plan} amountInr={amountInr} rate={rate} />
           </CardContent>
         </Card>
       </main>

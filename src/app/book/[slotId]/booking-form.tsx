@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { Slot } from '@/lib/types'
+import type { Plan } from '@/lib/types'
 
 declare global {
   interface Window {
@@ -36,24 +36,21 @@ interface RazorpayResponse {
   razorpay_signature: string
 }
 
-function formatTime(time: string) {
-  const [h, m] = time.split(':')
-  const hour = parseInt(h)
-  const suffix = hour >= 12 ? 'PM' : 'AM'
-  const display = hour % 12 === 0 ? 12 : hour % 12
-  return `${display}:${m} ${suffix}`
-}
-
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+async function loadRazorpay(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window.Razorpay !== 'undefined') {
+      resolve()
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Failed to load Razorpay'))
+    document.body.appendChild(script)
   })
 }
 
-export function BookingForm({ slot }: { slot: Slot }) {
+export function BookingForm({ plan, amountInr, rate }: { plan: Plan; amountInr: number; rate: number }) {
   const router = useRouter()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -77,45 +74,35 @@ export function BookingForm({ slot }: { slot: Slot }) {
     setLoading(true)
 
     try {
-      // Load Razorpay script dynamically if not already loaded
-      await new Promise<void>((resolve, reject) => {
-        if (typeof window.Razorpay !== 'undefined') {
-          resolve()
-          return
-        }
-        const script = document.createElement('script')
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-        script.onload = () => resolve()
-        script.onerror = () => reject(new Error('Failed to load Razorpay'))
-        document.body.appendChild(script)
-      })
+      await loadRazorpay()
 
-      // Step 1: Create Razorpay order
+      // Create order
       const orderRes = await fetch('/api/payment/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slotId: slot.id, amount: slot.price }),
+        body: JSON.stringify({
+          planId: plan.id,
+          amountUsd: plan.amountUsd,
+          amountInr,
+        }),
       })
 
-      if (!orderRes.ok) {
-        throw new Error('Failed to create payment order')
-      }
+      if (!orderRes.ok) throw new Error('Failed to create payment order')
 
       const { orderId, amount, currency } = await orderRes.json()
 
-      // Step 2: Open Razorpay checkout
+      // Open Razorpay
       const options: RazorpayOptions = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount,
         currency,
         name: 'BookingMVP',
-        description: slot.title,
+        description: plan.name,
         order_id: orderId,
         prefill: { name, email },
         theme: { color: '#000000' },
         handler: async (response: RazorpayResponse) => {
           try {
-            // Step 3: Verify payment on server
             const verifyRes = await fetch('/api/payment/verify', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -123,7 +110,10 @@ export function BookingForm({ slot }: { slot: Slot }) {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                slotId: slot.id,
+                planId: plan.id,
+                planName: plan.name,
+                amountUsd: plan.amountUsd,
+                amountInr,
                 clientName: name,
                 clientEmail: email,
               }),
@@ -137,8 +127,7 @@ export function BookingForm({ slot }: { slot: Slot }) {
               return
             }
 
-            // Step 4: Redirect to success
-            router.push(`/success?bookingId=${data.bookingId}`)
+            router.push(`/success?paymentId=${data.paymentId}`)
           } catch {
             setError('Something went wrong after payment. Please contact support.')
             setLoading(false)
@@ -159,56 +148,56 @@ export function BookingForm({ slot }: { slot: Slot }) {
 
   return (
     <div className="space-y-6">
-        {/* Slot summary */}
-        <div className="rounded-lg border bg-muted/30 p-4 space-y-1 text-sm">
-          <div className="font-medium text-base">{slot.title}</div>
-          <div className="text-muted-foreground">{formatDate(slot.date)}</div>
-          <div className="text-muted-foreground">
-            {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
-          </div>
-          <div className="pt-1 font-semibold text-lg">${slot.price} / hr</div>
+      {/* Plan summary */}
+      <div className="rounded-lg border bg-muted/30 p-4 space-y-1">
+        <div className="font-medium">{plan.name}</div>
+        <div className="text-sm text-muted-foreground">{plan.description}</div>
+        <div className="pt-2 flex items-baseline gap-2">
+          <span className="text-2xl font-bold">${plan.amountUsd}</span>
+          <span className="text-sm text-muted-foreground">
+            ≈ ₹{amountInr.toLocaleString('en-IN')} · rate: ₹{rate.toFixed(2)}/$
+          </span>
+        </div>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="name">Full Name</Label>
+          <Input
+            id="name"
+            type="text"
+            placeholder="Jane Smith"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={loading}
+            required
+          />
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="name">Full Name</Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="Jane Smith"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={loading}
-              required
-            />
-          </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="email">Email Address</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="jane@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
+            required
+          />
+        </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email Address</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="jane@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              required
-            />
-          </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+        <Button type="submit" className="w-full" size="lg" disabled={loading}>
+          {loading ? 'Processing…' : `Pay $${plan.amountUsd} (₹${amountInr.toLocaleString('en-IN')})`}
+        </Button>
+      </form>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Processing…' : `Pay $${slot.price} via Razorpay`}
-          </Button>
-        </form>
-
-        <p className="text-xs text-center text-muted-foreground">
-          Payments are secured by Razorpay. You will receive a confirmation email after booking.
-        </p>
-      </div>
+      <p className="text-xs text-center text-muted-foreground">
+        Indian & international cards · UPI · Netbanking · Wallets — all accepted via Razorpay
+      </p>
+    </div>
   )
 }

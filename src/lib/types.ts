@@ -1,21 +1,47 @@
-export type Slot = {
+export type Plan = {
   id: string
-  title: string
-  date: string
-  start_time: string
-  end_time: string
-  price: number
-  is_booked: boolean
+  name: string
+  amountUsd: number
+  description: string
+  features: string[]
 }
 
-export type Booking = {
+export type Payment = {
   id: string
-  slot_id: string
+  plan_name: string
+  amount_usd: number
+  amount_inr: number
   client_name: string
   client_email: string
   payment_id: string
   razorpay_order_id: string
   status: string
   created_at: string
-  slots?: Pick<Slot, 'title' | 'date' | 'start_time' | 'end_time' | 'price'>
 }
+
+export const PLANS: Plan[] = [
+  {
+    id: '150',
+    name: 'Standard Session',
+    amountUsd: 150,
+    description: '1-hour one-on-one consulting session',
+    features: [
+      'Software Development',
+      'Cyber Security',
+      'DevOps',
+      'Cloud Architecture',
+    ],
+  },
+  {
+    id: '200',
+    name: 'Premium Session',
+    amountUsd: 200,
+    description: '1-hour deep-dive session with follow-up report',
+    features: [
+      'Everything in Standard',
+      'Written summary & action plan',
+      'Priority scheduling',
+      '1 follow-up email',
+    ],
+  },
+]

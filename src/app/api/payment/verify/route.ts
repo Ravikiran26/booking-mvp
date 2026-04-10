@@ -7,12 +7,14 @@ export async function POST(request: Request) {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      slotId,
+      planName,
+      amountUsd,
+      amountInr,
       clientName,
       clientEmail,
     } = await request.json()
 
-    // Verify signature
+    // Verify HMAC signature
     const sign = `${razorpay_order_id}|${razorpay_payment_id}`
     const expectedSign = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
@@ -25,11 +27,12 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient()
 
-    // Save booking
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
+    const { data: payment, error } = await supabase
+      .from('payments')
       .insert({
-        slot_id: slotId,
+        plan_name: planName,
+        amount_usd: amountUsd,
+        amount_inr: amountInr,
         client_name: clientName,
         client_email: clientEmail,
         payment_id: razorpay_payment_id,
@@ -39,22 +42,12 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (bookingError) {
-      console.error('Booking insert error:', bookingError)
-      return Response.json({ error: 'Failed to save booking' }, { status: 500 })
+    if (error) {
+      console.error('Payment insert error:', error)
+      return Response.json({ error: 'Failed to save payment' }, { status: 500 })
     }
 
-    // Mark slot as booked
-    const { error: slotError } = await supabase
-      .from('slots')
-      .update({ is_booked: true })
-      .eq('id', slotId)
-
-    if (slotError) {
-      console.error('Slot update error:', slotError)
-    }
-
-    return Response.json({ success: true, bookingId: booking.id })
+    return Response.json({ success: true, paymentId: payment.id })
   } catch (error) {
     console.error('Verify error:', error)
     return Response.json({ error: 'Verification failed' }, { status: 500 })

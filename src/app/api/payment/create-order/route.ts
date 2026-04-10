@@ -7,16 +7,16 @@ const razorpay = new Razorpay({
 
 export async function POST(request: Request) {
   try {
-    const { slotId, amount } = await request.json()
+    const { planId, amountInr } = await request.json()
 
-    if (!slotId || !amount) {
-      return Response.json({ error: 'Missing slotId or amount' }, { status: 400 })
+    if (!planId || !amountInr) {
+      return Response.json({ error: 'Missing planId or amountInr' }, { status: 400 })
     }
 
     const order = await razorpay.orders.create({
-      amount: Math.round(amount * 100), // paise
+      amount: Math.round(amountInr * 100), // paise
       currency: 'INR',
-      receipt: `bk_${slotId.slice(0, 8)}_${Date.now().toString().slice(-8)}`,
+      receipt: `bk_${planId}_${Date.now().toString().slice(-8)}`,
     })
 
     return Response.json({ orderId: order.id, amount: order.amount, currency: order.currency })
