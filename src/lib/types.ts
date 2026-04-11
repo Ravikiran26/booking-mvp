@@ -3,32 +3,19 @@ export type Plan = {
   name: string
   amountUsd: number
   description: string
-  features: string[]
 }
 
 export const PLANS: Plan[] = [
   {
     id: '150',
-    name: 'Standard Session',
+    name: 'Technology Consulting',
     amountUsd: 150,
-    description: '1-hour one-on-one consulting session',
-    features: [
-      'Software Development',
-      'Cyber Security',
-      'DevOps',
-      'Cloud Architecture',
-    ],
+    description: 'One-on-one expert technology consulting session',
   },
   {
     id: '200',
-    name: 'Premium Session',
+    name: 'Technology Consulting',
     amountUsd: 200,
-    description: '1-hour deep-dive session with follow-up report',
-    features: [
-      'Everything in Standard',
-      'Written summary & action plan',
-      'Priority scheduling',
-      '1 follow-up email',
-    ],
+    description: 'One-on-one expert technology consulting session',
   },
 ]
