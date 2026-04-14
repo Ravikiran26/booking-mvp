@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { usdToInr } from '@/lib/currency'
 import type { Plan } from '@/lib/types'
 
 declare global {
@@ -57,6 +58,44 @@ export function BookingForm({ plan, amountInr, rate }: { plan: Plan; amountInr: 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const [couponCode, setCouponCode] = useState('')
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponError, setCouponError] = useState('')
+  const [discountUsd, setDiscountUsd] = useState(0)
+
+  const finalAmountUsd = plan.amountUsd - discountUsd
+  const finalAmountInr = discountUsd > 0 ? usdToInr(finalAmountUsd, rate) : amountInr
+
+  async function handleApplyCoupon() {
+    setCouponError('')
+    setCouponLoading(true)
+    try {
+      const res = await fetch('/api/coupon/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode, amountUsd: plan.amountUsd }),
+      })
+      const data = await res.json()
+      if (!data.valid) {
+        setCouponError(data.message ?? 'Invalid coupon code')
+        setDiscountUsd(0)
+      } else {
+        setDiscountUsd(data.discountUsd)
+        setCouponError('')
+      }
+    } catch {
+      setCouponError('Could not apply coupon. Try again.')
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  function handleRemoveCoupon() {
+    setCouponCode('')
+    setDiscountUsd(0)
+    setCouponError('')
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -76,14 +115,13 @@ export function BookingForm({ plan, amountInr, rate }: { plan: Plan; amountInr: 
     try {
       await loadRazorpay()
 
-      // Create order
       const orderRes = await fetch('/api/payment/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           planId: plan.id,
-          amountUsd: plan.amountUsd,
-          amountInr,
+          amountUsd: finalAmountUsd,
+          amountInr: finalAmountInr,
         }),
       })
 
@@ -91,7 +129,6 @@ export function BookingForm({ plan, amountInr, rate }: { plan: Plan; amountInr: 
 
       const { orderId, amount, currency } = await orderRes.json()
 
-      // Open Razorpay
       const options: RazorpayOptions = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount,
@@ -112,8 +149,8 @@ export function BookingForm({ plan, amountInr, rate }: { plan: Plan; amountInr: 
                 razorpay_signature: response.razorpay_signature,
                 planId: plan.id,
                 planName: plan.name,
-                amountUsd: plan.amountUsd,
-                amountInr,
+                amountUsd: finalAmountUsd,
+                amountInr: finalAmountInr,
                 clientName: name,
                 clientEmail: email,
               }),
@@ -161,9 +198,17 @@ export function BookingForm({ plan, amountInr, rate }: { plan: Plan; amountInr: 
         <div className="font-medium">{plan.name}</div>
         <div className="text-sm text-muted-foreground">{plan.description}</div>
         <div className="pt-2 flex items-baseline gap-2">
-          <span className="text-2xl font-bold">${plan.amountUsd}</span>
+          {discountUsd > 0 ? (
+            <>
+              <span className="text-2xl font-bold">${finalAmountUsd}</span>
+              <span className="text-sm line-through text-muted-foreground">${plan.amountUsd}</span>
+              <span className="text-sm text-green-600 font-medium">-${discountUsd} off</span>
+            </>
+          ) : (
+            <span className="text-2xl font-bold">${plan.amountUsd}</span>
+          )}
           <span className="text-sm text-muted-foreground">
-            ≈ ₹{amountInr.toLocaleString('en-IN')} · rate: ₹{rate.toFixed(2)}/$
+            ≈ ₹{finalAmountInr.toLocaleString('en-IN')} · rate: ₹{rate.toFixed(2)}/$
           </span>
         </div>
       </div>
@@ -196,10 +241,52 @@ export function BookingForm({ plan, amountInr, rate }: { plan: Plan; amountInr: 
           />
         </div>
 
+        {/* Coupon */}
+        <div className="space-y-1.5">
+          <Label htmlFor="coupon">Coupon Code (optional)</Label>
+          {discountUsd > 0 ? (
+            <div className="flex items-center gap-2 rounded-md border border-green-500 bg-green-50 px-3 py-2">
+              <span className="text-sm text-green-700 font-medium flex-1">
+                "{couponCode.toUpperCase()}" applied — ${discountUsd} off
+              </span>
+              <button
+                type="button"
+                onClick={handleRemoveCoupon}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                id="coupon"
+                type="text"
+                placeholder="Enter code"
+                value={couponCode}
+                onChange={(e) => { setCouponCode(e.target.value); setCouponError('') }}
+                disabled={loading || couponLoading}
+                className="uppercase"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleApplyCoupon}
+                disabled={!couponCode.trim() || couponLoading || loading}
+              >
+                {couponLoading ? '…' : 'Apply'}
+              </Button>
+            </div>
+          )}
+          {couponError && <p className="text-sm text-destructive">{couponError}</p>}
+        </div>
+
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button type="submit" className="w-full" size="lg" disabled={loading}>
-          {loading ? 'Processing…' : `Pay $${plan.amountUsd} (₹${amountInr.toLocaleString('en-IN')})`}
+          {loading
+            ? 'Processing…'
+            : `Pay $${finalAmountUsd} (₹${finalAmountInr.toLocaleString('en-IN')})`}
         </Button>
       </form>
 

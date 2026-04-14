@@ -7,15 +7,15 @@ export type Plan = {
 
 export const PLANS: Plan[] = [
   {
-    id: '10',
+    id: '150',
     name: 'Technology Consulting',
-    amountUsd: 10,
+    amountUsd: 150,
     description: 'One-on-one expert technology consulting session',
   },
   {
-    id: '15',
+    id: '200',
     name: 'Technology Consulting',
-    amountUsd: 15,
+    amountUsd: 200,
     description: 'One-on-one expert technology consulting session',
   },
 ]

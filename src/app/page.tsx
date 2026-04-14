@@ -9,8 +9,8 @@ export default async function HomePage() {
   const rate = await getLiveRate()
 
   const plans = [
-    { id: '10', amountUsd: 10 },
-    { id: '15', amountUsd: 15 },
+    { id: '150', amountUsd: 150 },
+    { id: '200', amountUsd: 200 },
   ]
 
   return (
